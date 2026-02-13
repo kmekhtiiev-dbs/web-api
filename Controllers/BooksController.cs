@@ -1,105 +1,61 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using WebApi.Contracts.Books;
-using WebApi.Data;
-using WebApi.Models;
+using WebApi.Services.Books;
 
 namespace WebApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class BooksController(ApplicationDbContext dbContext) : ControllerBase
+public class BooksController(IBookService bookService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<BookResponse>>> GetAll(CancellationToken cancellationToken)
     {
-        var books = await dbContext.Books
-            .AsNoTracking()
-            .OrderBy(b => b.Id)
-            .Select(b => ToResponse(b))
-            .ToListAsync(cancellationToken);
-
+        var books = await bookService.GetAllAsync(cancellationToken);
         return Ok(books);
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<BookResponse>> GetById(int id, CancellationToken cancellationToken)
     {
-        var book = await dbContext.Books
-            .AsNoTracking()
-            .Where(b => b.Id == id)
-            .Select(b => ToResponse(b))
-            .FirstOrDefaultAsync(cancellationToken);
-
+        var book = await bookService.GetByIdAsync(id, cancellationToken);
         return book is null ? NotFound() : Ok(book);
     }
 
     [HttpPost]
     public async Task<ActionResult<BookResponse>> Create([FromBody] CreateBookRequest request, CancellationToken cancellationToken)
     {
-        if (await dbContext.Books.AnyAsync(b => b.Isbn == request.Isbn, cancellationToken))
+        var result = await bookService.CreateAsync(request, cancellationToken);
+
+        if (result.ResultType == CreateBookResultType.DuplicateIsbn)
         {
             return Conflict(new ProblemDetails { Title = "Duplicate ISBN", Detail = "A book with this ISBN already exists." });
         }
 
-        var book = new Book
-        {
-            Title = request.Title,
-            Author = request.Author,
-            Isbn = request.Isbn,
-            PublishedOn = request.PublishedOn,
-            PageCount = request.PageCount
-        };
-
-        dbContext.Books.Add(book);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return CreatedAtAction(nameof(GetById), new { id = book.Id }, ToResponse(book));
+        return CreatedAtAction(nameof(GetById), new { id = result.Book!.Id }, result.Book);
     }
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateBookRequest request, CancellationToken cancellationToken)
     {
-        var existingBook = await dbContext.Books.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
-        if (existingBook is null)
+        var result = await bookService.UpdateAsync(id, request, cancellationToken);
+
+        return result.ResultType switch
         {
-            return NotFound();
-        }
-
-        var duplicateIsbnExists = await dbContext.Books.AnyAsync(
-            b => b.Id != id && b.Isbn == request.Isbn,
-            cancellationToken);
-
-        if (duplicateIsbnExists)
-        {
-            return Conflict(new ProblemDetails { Title = "Duplicate ISBN", Detail = "A book with this ISBN already exists." });
-        }
-
-        existingBook.Title = request.Title;
-        existingBook.Author = request.Author;
-        existingBook.Isbn = request.Isbn;
-        existingBook.PublishedOn = request.PublishedOn;
-        existingBook.PageCount = request.PageCount;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return NoContent();
+            UpdateBookResultType.NotFound => NotFound(),
+            UpdateBookResultType.DuplicateIsbn => Conflict(new ProblemDetails
+            {
+                Title = "Duplicate ISBN",
+                Detail = "A book with this ISBN already exists."
+            }),
+            _ => NoContent()
+        };
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var book = await dbContext.Books.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
-        if (book is null)
-        {
-            return NotFound();
-        }
-
-        dbContext.Books.Remove(book);
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return NoContent();
+        var deleted = await bookService.DeleteAsync(id, cancellationToken);
+        return deleted ? NoContent() : NotFound();
     }
-
-    private static BookResponse ToResponse(Book b) =>
-        new(b.Id, b.Title, b.Author, b.Isbn, b.PublishedOn, b.PageCount);
 }
