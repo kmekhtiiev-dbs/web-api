@@ -11,6 +11,11 @@ public class BasicAuthDashboardAuthorizationFilter(string username, string passw
 
     public bool Authorize(DashboardContext context)
     {
+        if (string.IsNullOrWhiteSpace(_username) || string.IsNullOrWhiteSpace(_password))
+        {
+            return false;
+        }
+
         var httpContext = context.GetHttpContext();
         var authHeader = httpContext.Request.Headers.Authorization.ToString();
 
@@ -40,11 +45,7 @@ public class BasicAuthDashboardAuthorizationFilter(string username, string passw
             return false;
         }
 
-        var providedUser = parts[0];
-        var providedPassword = parts[1];
-
-        var isValid = FixedTimeEquals(providedUser, _username) && FixedTimeEquals(providedPassword, _password);
-
+        var isValid = FixedTimeEquals(parts[0], _username) && FixedTimeEquals(parts[1], _password);
         if (!isValid)
         {
             Challenge(httpContext);
@@ -57,6 +58,12 @@ public class BasicAuthDashboardAuthorizationFilter(string username, string passw
     {
         var leftBytes = Encoding.UTF8.GetBytes(left);
         var rightBytes = Encoding.UTF8.GetBytes(right);
+
+        if (leftBytes.Length != rightBytes.Length)
+        {
+            return false;
+        }
+
         return CryptographicOperations.FixedTimeEquals(leftBytes, rightBytes);
     }
 

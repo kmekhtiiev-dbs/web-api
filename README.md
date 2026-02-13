@@ -4,23 +4,24 @@ This repository contains a basic ASP.NET Core Web API project configured for Azu
 
 ## Features
 
-- ASP.NET Core Web API (`net10.0`)
+- ASP.NET Core Web API (`net8.0`)
 - Swagger / OpenAPI
 - Hangfire with in-memory storage
 - Hangfire dashboard secured with basic authentication
 - Entity Framework Core with SQL Server provider
 - `Book` entity with full CRUD API
 - FluentValidation for request validation
+- `/health` endpoint for liveness checks
 
-## Configuration
+## Configuration (important before deploy)
 
-Update these settings before deployment:
+Set these values in Azure Web App **Application Settings**:
 
-- `ConnectionStrings:DefaultConnection`
-- `Hangfire:Dashboard:Username`
-- `Hangfire:Dashboard:Password`
+- `ConnectionStrings__DefaultConnection`
+- `Hangfire__Dashboard__Username`
+- `Hangfire__Dashboard__Password`
 
-For Azure Web App, set these as Application Settings (environment variables).
+> Note: Hangfire in-memory storage is volatile (data lost on restart/scale-out). Keep this for development or single-instance non-critical workloads.
 
 ## Endpoints
 
@@ -29,5 +30,6 @@ For Azure Web App, set these as Application Settings (environment variables).
 - `POST /api/books`
 - `PUT /api/books/{id}`
 - `DELETE /api/books/{id}`
-- `GET /swagger` (development)
+- `GET /swagger`
 - `GET /hangfire` (basic auth protected)
+- `GET /health`
