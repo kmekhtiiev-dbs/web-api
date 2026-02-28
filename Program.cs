@@ -21,7 +21,9 @@ builder.Services.Configure<HangfireDashboardAuthOptions>(
     builder.Configuration.GetSection(HangfireDashboardAuthOptions.SectionName));
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => sqlOptions.EnableRetryOnFailure()));
 
 builder.Services.AddHangfire(configuration =>
     configuration.UseSimpleAssemblyNameTypeSerializer()
@@ -65,7 +67,8 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    dbContext.Database.Migrate();
+    var executionStrategy = dbContext.Database.CreateExecutionStrategy();
+    executionStrategy.Execute(() => dbContext.Database.Migrate());
 }
 
 app.Run();
