@@ -215,4 +215,3 @@ public class BasicAuthDashboardAuthorizationFilterTests
         result.Should().BeTrue();
     }
 }
-
