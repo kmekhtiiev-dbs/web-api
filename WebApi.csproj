@@ -6,6 +6,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="WebApi.Tests\**" />
+    <Content Remove="WebApi.Tests\**" />
+    <EmbeddedResource Remove="WebApi.Tests\**" />
+    <None Remove="WebApi.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.0" />
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.14" />
     <PackageReference Include="Hangfire.MemoryStorage" Version="1.8.1.2" />
